@@ -6,6 +6,17 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, parse_qs
+from fastapi import FastAPI, WebSocket
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
 BIST_SYMBOLS = {
     "THYAO": "https://tr.investing.com/equities/turk-hava-yollari",
@@ -27,40 +38,17 @@ async def fetch_bist_price(url):
     response = requests.get(url, headers=headers)
     soup = BeautifulSoup(response.text, "html.parser")
     price_tag = soup.find("span", {"data-test": "instrument-price-last"})
-from fastapi import FastAPI
-
-app = FastAPI()
+    return price_tag.text if price_tag else "N/A"
 
 @app.get("/")
 def read_root():
     return {"mesaj": "Sinyal API çalışıyor!"}
-from fastapi import WebSocket
-import json
-
-@app.websocket("/")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    await websocket.send_text(json.dumps({
-        "signals": [
-            {
-                "symbol": "BTCUSDT",
-                "type": "BUY",
-                "exchange": "Binance",
-                "price": 10000,
-                "rsi": 35,
-                "macd": 1.2,
-                "ema_cross": True
-            }
-        ]
-    }))
-from fastapi import WebSocket
-import asyncio
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     while True:
-        await asyncio.sleep(2)  # örnek için 2 saniyede bir
+        await asyncio.sleep(2)
         await websocket.send_json({
             "signals": [
                 {
@@ -74,4 +62,3 @@ async def websocket_endpoint(websocket: WebSocket):
                 }
             ]
         })
-
